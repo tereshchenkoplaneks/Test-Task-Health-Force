@@ -1,3 +1,4 @@
+import argparse
 import configparser
 import datetime
 import logging
@@ -13,29 +14,17 @@ import pandas as pd
 # Initialize logger
 logger = logging
 
-# Set logging level
-config = configparser.ConfigParser()
-config.read("../config.ini")
 
-level = config.get("logging", "level", fallback="debug").lower()
+def set_logger_level(default_level):
+    # Set logging level based on the mapped value or default to DEBUG
+    logger.basicConfig(level=default_level)
 
-# Map logging levels to corresponding constants
-level_mapping = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warning": logging.WARNING,
-    "error": logging.ERROR,
-    "critical": logging.CRITICAL
-}
+    modules_for_logging = ("urllib3", "websockets", "pyppeteer", "asyncio", "selenium")
 
-# Set logging level based on the mapped value or default to DEBUG
-logger.basicConfig(level=level_mapping.get(level, logging.DEBUG))
+    for module_name in modules_for_logging:
+        module_logger = logging.getLogger(module_name)
+        module_logger.setLevel(logging.CRITICAL)
 
-modules_for_logging = ("urllib3", "websockets", "pyppeteer", "asyncio", "selenium")
-
-for module_name in modules_for_logging:
-    logger = logging.getLogger(module_name)
-    logger.setLevel(logging.CRITICAL)
 
 dict_prestazionne = {
     1: "ALTRE PRESTAZIONI O NESSUNA DELL'ELENCO",
@@ -54,10 +43,14 @@ dict_prestazionne = {
 # TODO use scadenza, handle two PNR on two lines
 
 
-def main():
+def main(config_file):
     # Load config file
     config = configparser.ConfigParser()
-    config.read("config.ini")
+    config.read(config_file)
+
+    # Setup logger
+    default_level = get_logger_level(config)
+    set_logger_level(default_level)
 
     # Setup paths
     date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -313,5 +306,34 @@ def add_pnr_to_df(df_patients: pd.DataFrame) -> pd.DataFrame:
     return df_patients
 
 
+def get_logger_level(config):
+    level = config.get("logging", "level", fallback="debug").lower()
+
+    # Map logging levels to corresponding constants
+    level_mapping = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL
+    }
+
+    return level_mapping.get(level, logging.DEBUG)
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Script description")
+
+    # Add an argument for the config file
+    parser.add_argument(
+        "config_file",
+        nargs="?",  # Allows the argument to be optional
+        default="config.ini",  # Default value if no argument is provided
+        help="Path to the config file",
+    )
+
+    # Parse the command-line arguments
+    args = parser.parse_args()
+
+    # Call the main function with the provided config file
+    main(args.config_file)
