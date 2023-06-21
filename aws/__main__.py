@@ -19,6 +19,7 @@ from pathlib import Path
 from common import catch_all_exceptions
 from logger import logger
 from process_patient import process_patient
+from process import PatientProcessor
 from response import Response
 from webdriver import WebDriver
 
@@ -229,14 +230,10 @@ def process_patients(
     )
 
     # Process patients batch
+    patient_processor = PatientProcessor(webdriver=webdriver, config=config_yaml)
     for patient in patients:
         logger.info(f'Processing patient : "{patient}"')
-        process_patient(
-            webdriver=webdriver,
-            patient_data=patient,
-            response=response,
-            config=config_yaml,
-        )
+        patient_processor.process_patient(patient, response)
 
     # Need to call this method otherwise the driver process stay in memory
     webdriver.quit()
