@@ -17,27 +17,25 @@ logger = logging
 config = configparser.ConfigParser()
 config.read("../config.ini")
 
-# level = config["logging"]["level"].lower()
-level = None
-if level == "debug":
-    level = logging.DEBUG
-elif level == "info":
-    level = logging.INFO
-elif level == "warning":
-    level = logging.WARNING
-elif level == "error":
-    level = logging.ERROR
-elif level == "critical":
-    level = logging.CRITICAL
-else:
-    level = logging.DEBUG
-    # raise ValueError(f'Unknown logging level "{level}".')
-logger.basicConfig(level=level)
+level = config.get("logging", "level", fallback="debug").lower()
 
+# Map logging levels to corresponding constants
+level_mapping = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL
+}
 
-for _ in ("urllib3", "websockets", "pyppeteer", "asyncio", "selenium"):
-    logging.getLogger(_).setLevel(logging.CRITICAL)
+# Set logging level based on the mapped value or default to DEBUG
+logger.basicConfig(level=level_mapping.get(level, logging.DEBUG))
 
+modules_for_logging = ("urllib3", "websockets", "pyppeteer", "asyncio", "selenium")
+
+for module_name in modules_for_logging:
+    logger = logging.getLogger(module_name)
+    logger.setLevel(logging.CRITICAL)
 
 dict_prestazionne = {
     1: "ALTRE PRESTAZIONI O NESSUNA DELL'ELENCO",
@@ -62,33 +60,28 @@ def main():
     config.read("config.ini")
 
     # Setup paths
-    date = datetime.datetime.now().date().__str__()
+    date = datetime.datetime.now().strftime("%Y-%m-%d")
     path_dir_data = os.path.join(config["path"]["path_dir_data"], date)
     os.makedirs(path_dir_data, exist_ok=True)
 
     create_df_from_excel(
         path_file_excel_next_appointments=os.path.expanduser(
-            config["path"]["path_file_input"]
-            os.path.join(path_dir_data, config["path"]["filename_input"])
-        ),
+            os.path.join(path_dir_data, config["path"]["filename_input"])),
         path_file_second_pnr=os.path.expanduser(config["path"]["path_file_second_pnr"]),
         path_cat_code=os.path.expanduser(config["path"]["path_cat_code"]),
         accepted_insurances=("QUAS", "QUAS-PENSIONATI"),
         result_file=os.path.expanduser(
-            config["path"]["path_file_output"].format(
-                date=datetime.datetime.now().date()
-            )
             os.path.join(path_dir_data, config["path"]["filename_output"])
         ),
     )
 
 
 def create_df_from_excel(
-    path_file_excel_next_appointments: str,
-    path_file_second_pnr: str,
-    path_cat_code: str,
-    accepted_insurances: tuple,
-    result_file: str,
+        path_file_excel_next_appointments: str,
+        path_file_second_pnr: str,
+        path_cat_code: str,
+        accepted_insurances: tuple,
+        result_file: str,
 ):
     """
     Main function (temp) to process data and print the resulting DataFrame.
@@ -143,13 +136,14 @@ def add_cat_code(df_patients: pd.DataFrame, path_cat_code: str) -> pd.DataFrame:
 
     if nb_patient_before != nb_patient_after:
         logger.error(
-            f"{nb_patient_before - nb_patient_after} patients were dropped because of their ESAME. This REALLY should not happen. DATA WAS LOST ! "
+            f"{nb_patient_before - nb_patient_after} patients were dropped because of their ESAME."
+            f" This REALLY should not happen. DATA WAS LOST ! "
         )
     return joined
 
 
 def filter_accepted_insurances(
-    df_patients: pd.DataFrame, accepted_insurances: tuple[str]
+        df_patients: pd.DataFrame, accepted_insurances: tuple[str]
 ) -> pd.DataFrame:
     """
     Filter the DataFrame to select appointement that matches the accepted insurances.
@@ -173,7 +167,8 @@ def filter_accepted_insurances(
     nb_patient_after = len(df_patients.index)
     if nb_patient_before != nb_patient_after:
         logger.warning(
-            f"{nb_patient_before - nb_patient_after} patients were dropped because they don't have the correct insurance, this should not happen"
+            f"{nb_patient_before - nb_patient_after} patients were dropped because they don't have the correct"
+            f" insurance, this should not happen"
         )
     return result
 
@@ -212,7 +207,7 @@ def filter_minor_from_df(df_patients: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_check_2nd_pnr(
-    df_patients: pd.DataFrame, path_file_second_pnr: str
+        df_patients: pd.DataFrame, path_file_second_pnr: str
 ) -> pd.DataFrame:
     """
     Add a column to the DataFrame to indicate if an appointement requires a second PNR.
@@ -278,7 +273,8 @@ def extract_scadenza_from_df(df_patients: pd.DataFrame) -> pd.DataFrame:
 
     if nb_patient_before != nb_patient_after:
         logger.error(
-            f"{nb_patient_before - nb_patient_after} patients were dropped because of their Scadenza. This REALLY should not happen. DATA WAS LOST ! "
+            f"{nb_patient_before - nb_patient_after} patients were dropped because of their Scadenza."
+            f" This REALLY should not happen. DATA WAS LOST ! "
         )
     return df_patients
 
@@ -311,7 +307,8 @@ def add_pnr_to_df(df_patients: pd.DataFrame) -> pd.DataFrame:
 
     if nb_patient_before != nb_patient_after:
         logger.error(
-            f"{nb_patient_before - nb_patient_after} patients were dropped because of their ESAME. This REALLY should not happen. DATA WAS LOST ! "
+            f"{nb_patient_before - nb_patient_after} patients were dropped because of their ESAME."
+            f" This REALLY should not happen. DATA WAS LOST ! "
         )
     return df_patients
 
